@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TensorFlow/Training artifacts (large files)
+checkpoints/train/
+checkpoints/best/
+checkpoints/summaries/
+*.ckpt*
+*.h5
+events.out.tfevents.*
+
+# Keep evaluation results (text files only)
+!checkpoints/perfs-*.txt
+
+# Large generated files
+visualizations/
+
+# Data files (available from original sources)
+data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
