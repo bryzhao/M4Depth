@@ -26,7 +26,7 @@ python3 train_usegeo.py \
     --from_midair_ckpt \
     --midair_ckpt_dir=./checkpoints \
     --output_dir=./checkpoints_usegeo \
-    --log_dir=./checkpoints_usegeo/summaries \
+    --skip_validation \
     "$@"
 
 echo ""

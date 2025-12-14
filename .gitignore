@@ -42,3 +42,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+
+# Personal/presentation files
+PRESENTATION.md
+
+# UseGeo training artifacts
+checkpoints_usegeo/
+visualizations_usegeo/

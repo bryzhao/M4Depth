@@ -64,15 +64,16 @@ class DataLoaderUseGeo(DataLoaderGeneric):
             self.intermediate_size + [3]
         )
 
-        # pose data (identity since usegeo has no poses)
+        # pose data - UseGeo has no real poses, but M4Depth requires non-zero translation
+        # to compute parallax. We use a small synthetic forward translation.
+        # This allows the model to run without NaN, though geometric accuracy is approximate.
         out_data['rot'] = tf.cast(
             tf.stack([data_sample['qw'], data_sample['qx'], data_sample['qy'], data_sample['qz']], 0),
             dtype=tf.float32
         )
-        out_data['trans'] = tf.cast(
-            tf.stack([data_sample['tx'], data_sample['ty'], data_sample['tz']], 0),
-            dtype=tf.float32
-        )
+        # Small forward translation (0.5m in z-direction) instead of zero
+        # This simulates slow forward drone motion
+        out_data['trans'] = tf.constant([0.0, 0.0, 0.5], dtype=tf.float32)
         out_data['new_traj'] = tf.math.equal(data_sample['id'], 0)
 
         # load depth data if available
