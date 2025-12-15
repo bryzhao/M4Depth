@@ -1,63 +1,27 @@
-# M4Depth
+# M4Depth - RBE 577 Final Project
 
-This is the reference TensorFlow implementation for training and testing M4Depth, the depth estimation method described in
+This repository is a fork of the original [M4Depth](https://github.com/michael-fonder/M4Depth) implementation, extended for the **RBE 577: Machine Learning for Robotics** final project at WPI.
+
+The project reproduces the paper's results on the MidAir synthetic dataset and explores sim-to-real transfer by fine-tuning on the UseGeo real-world drone dataset.
+
+**Author:** Bryan Zhao
+**Course:** RBE 577 - Machine Learning for Robotics
+**Term:** Fall 2024
+
+---
+
+## Original Work Attribution
+
+This codebase builds upon the work of Fonder et al. The original README content and paper citation are preserved below, as their work forms the foundation of this project.
 
 > **Parallax Inference for Robust Temporal Monocular Depth Estimation in Unstructured Environments**
 >
-> [Michaël Fonder](https://www.uliege.be/cms/c_9054334/fr/repertoire?uid=u225873), [Damien Ernst](https://www.uliege.be/cms/c_9054334/fr/repertoire?uid=u030242) and [Marc Van Droogenbroeck](https://www.uliege.be/cms/c_9054334/fr/repertoire?uid=u182591) 
-> 
-> [PDF file](https://www.mdpi.com/1424-8220/22/23/9374/pdf), [Sensors website](https://www.mdpi.com/1424-8220/22/23/9374)
+> [Michaël Fonder](https://www.uliege.be/cms/c_9054334/fr/repertoire?uid=u225873), [Damien Ernst](https://www.uliege.be/cms/c_9054334/fr/repertoire?uid=u030242) and [Marc Van Droogenbroeck](https://www.uliege.be/cms/c_9054334/fr/repertoire?uid=u182591)
+>
+> [PDF](https://www.mdpi.com/1424-8220/22/23/9374/pdf) | [Sensors Journal](https://www.mdpi.com/1424-8220/22/23/9374)
 
-## Overview
-
-M4Depth is deep neural network designed to estimate depth from RGB image sequences acquired in unknown environments by a camera moving with 6 degrees of freedom (DoF), and is:
-
-*  **Lightweight**: M4Depth only requires 500MB of VRAM to run;
-*  **Real-time**: M4Depth has a fast inference time that makes it compatible for real-time applications on most GPUs;
-*  **State-of-the-art**: M4Depth is state of the art on the Mid-Air dataset and outperforms existing methods in a generalization setup on the TartanAir dataset, while having good performances on the
-KITTI dataset.
-
-This network is the result of two major contributions: 
-* We define a notion of visual parallax between two frames from a generic six-degree-of-freedom (6-DoF) camera motion, and present a way to build cost volumes with this parallax;
-* We use these cost volumes to build a novel lightweight multi-level architecture;
-
-This repository contains all the material necessary to reproduce the results presented in the paper.
-
-<p align="center">
-  <tr>
-    <td> <img src="assets/img/ma_1_rgb.jpg"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/ma_3_rgb.jpg"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/ma_2_rgb.jpg"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/tta_1_rgb.jpg"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/tta_2_rgb.jpg"  alt="1" height = 128px ></td>
-   </tr> 
-  <br>
-  <tr>
-    <td> <img src="assets/img/ma_1_est.png"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/ma_3_est.png"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/ma_2_est.png"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/tta_1_est.png"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/tta_2_est.png"  alt="1" height = 128px ></td>
-   </tr>
-  <br>
-  <tr>
-    <td> <img src="assets/img/ma_1_gt.png"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/ma_3_gt.png"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/ma_2_gt.png"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/tta_1_gt.png"  alt="1" height = 128px ></td>
-    <td> <img src="assets/img/tta_2_gt.png"  alt="1" height = 128px ></td>
-   </tr>
-  <br>
-</p>
-  Samples produced by our method trained on Mid-Air when tested on Mid-Air (three leftmost columns) and when tested in generalization on TartanAir (two rightmost columns): the first line shows the RGB picture capured by the camera, the second the results produced by our method and the last one the ground-truth depth map.
-  
-<hr>
-
-## Citation
-
-If you use our work in your research, please consider citing our paper:
-
-```
+If you use this work, please cite the original paper:
+```bibtex
 @article{Fonder2022Parallax,
   title     = {Parallax Inference for Robust Temporal Monocular Depth Estimation in Unstructured Environments},
   author    = {Fonder, Michael and Ernst, Damien and Van Droogenbroeck, Marc},
@@ -68,166 +32,337 @@ If you use our work in your research, please consider citing our paper:
   month     = {November},
   year      = {2022},
   doi       = {10.3390/s22239374}
-  url       = {https://doi.org/10.3390/s22239374}
 }
 ```
 
-## Dependencies
+---
 
-Assuming a fresh [Anaconda](https://www.anaconda.com/download/) distribution install, you can install the dependencies required to run our code with:
+## Project Overview
+
+M4Depth estimates depth from RGB image sequences using camera motion (from GPS/IMU). Unlike methods that learn scene-specific depth cues, M4Depth learns the physics of **motion parallax**—how objects at different distances move differently as the camera moves. This makes it more robust in unfamiliar environments like forests.
+
+### What I Added
+
+This fork extends the original repository with:
+
+| Addition | Purpose |
+|----------|---------|
+| `train.sh`, `eval.sh` | Wrapper scripts for training and evaluation with proper environment setup |
+| `dataloaders/usegeo.py` | Custom dataloader for the UseGeo real-world dataset |
+| `train_usegeo.py` | Fine-tuning script for sim-to-real transfer learning |
+| `visualize_predictions.py` | Generate side-by-side depth comparisons for MidAir |
+| `visualize_usegeo.py` | Generate depth comparisons for UseGeo |
+| `plot_*.py` | Scripts to generate training curves and metric comparisons |
+| `usegeo_csv_generator.py` | Generate train/test splits for UseGeo |
+
+---
+
+## Results Summary
+
+### Phase 1: MidAir (Synthetic Data)
+
+I trained the network from scratch on MidAir and achieved results comparable to the paper:
+
+| Metric | My Results | Paper | Notes |
+|--------|-----------|-------|-------|
+| Abs Rel ↓ | **0.102** | 0.105 | 3% better |
+| Sq Rel ↓ | **3.23** | 3.454 | 6% better |
+| RMSE ↓ | 7.24 | 7.043 | Similar |
+| RMSE Log ↓ | 0.190 | 0.186 | Similar |
+| δ < 1.25 ↑ | 0.917 | 0.919 | Similar |
+| δ < 1.25² ↑ | 0.953 | 0.953 | Identical |
+| δ < 1.25³ ↑ | 0.969 | 0.969 | Identical |
+
+### Phase 2: UseGeo (Real-World Data)
+
+Fine-tuned the MidAir-pretrained model on real drone imagery from UseGeo. See `usegeo_comparison.png` for a comparison of fine-tuned vs. scratch-trained models.
+
+---
+
+## Setup Instructions
+
+### Prerequisites
+
+- Ubuntu 22.04 (tested)
+- NVIDIA GPU with 12GB+ VRAM
+- CUDA 12.x
+- Python 3.10
+
+### Environment Setup
+
+I used a Python virtual environment instead of conda to avoid conflicts with system packages (ROS2, etc.). The key is explicitly setting PYTHONPATH to isolate from system Python.
+
+```bash
+# Create virtual environment
+python3 -m venv m4depth_env
+source m4depth_env/bin/activate
+
+# Install dependencies
+pip install tensorflow[and-cuda]==2.20 numpy pandas h5py pyquaternion matplotlib tifffile
+
+# Verify GPU detection
+python3 -c "import tensorflow as tf; print('GPUs:', tf.config.list_physical_devices('GPU'))"
+```
+
+### Important: Environment Activation
+
+Before running any script, always activate the environment with explicit PYTHONPATH:
+
+```bash
+source /path/to/m4depth_env/bin/activate
+export PYTHONPATH="/path/to/m4depth_env/lib/python3.10/site-packages"
+```
+
+The wrapper scripts (`train.sh`, `eval.sh`, etc.) handle this automatically.
+
+### Dataset Setup
+
+1. **MidAir Dataset** (~317 GB)
+   - Download from [midair.ulg.ac.be](https://midair.ulg.ac.be/download.html)
+   - Select "Left RGB" and "Stereo Disparity"
+   - Extract and update `datasets_location.json`
+
+2. **UseGeo Dataset**
+   - Download from the UseGeo project page
+   - Run `python usegeo_csv_generator.py` to create train/test splits
+
+3. **Configure paths** in `datasets_location.json`:
+   ```json
+   {
+     "midair": "/path/to/MidAir",
+     "usegeo": "/path/to/UseGeo"
+   }
+   ```
+
+---
+
+## Usage
+
+### Training on MidAir (Phase 1)
+
+```bash
+./train.sh
+```
+
+This runs training with the paper's configuration:
+- 4-frame sequences
+- 6-level pyramid architecture
+- Batch size 3
+- ~220k iterations total
+
+Monitor training progress:
+```bash
+tensorboard --logdir=./checkpoints/summaries
+```
+
+### Evaluation
+
+```bash
+./eval.sh
+```
+
+Results are saved to `checkpoints/perfs-midair.txt`.
+
+### Generate Visualizations
+
+```bash
+./visualize.sh --num_samples=10
+```
+
+Creates side-by-side comparisons in `visualizations/`.
+
+### Fine-tuning on UseGeo (Phase 2)
+
+```bash
+./train_usegeo.sh
+```
+
+This loads the MidAir-pretrained weights and fine-tunes on UseGeo with:
+- Lower learning rate (1e-5)
+- Batch size 2
+- 30 epochs
+
+### Generate Training Plots
+
+```bash
+python plot_from_tensorboard.py --output=training_curves.png
+python plot_usegeo_training.py
+python plot_usegeo_comparison.py
+```
+
+---
+
+## Repository Structure
+
+```
+M4Depth/
+├── main.py                    # Original training/eval script
+├── m4depth_network.py         # Network architecture
+├── m4depth_options.py         # Command-line options
+├── dataloaders/
+│   ├── generic.py             # Base dataloader class
+│   ├── midair.py              # MidAir dataloader (original)
+│   ├── usegeo.py              # UseGeo dataloader (added)
+│   └── ...
+├── data/midair/               # Train/test CSV splits
+│
+│ # Scripts I Added:
+├── train.sh                   # MidAir training wrapper
+├── eval.sh                    # Evaluation wrapper
+├── visualize.sh               # Visualization wrapper
+├── train_usegeo.py            # UseGeo fine-tuning script
+├── train_usegeo.sh            # UseGeo training wrapper
+├── visualize_predictions.py   # MidAir visualization
+├── visualize_usegeo.py        # UseGeo visualization
+├── visualize_usegeo.sh        # UseGeo viz wrapper
+├── plot_from_tensorboard.py   # Training curve plots
+├── plot_usegeo_training.py    # UseGeo training plots
+├── plot_usegeo_comparison.py  # Compare fine-tuned vs scratch
+├── usegeo_csv_generator.py    # Generate UseGeo data splits
+│
+│ # Generated Outputs:
+├── training_curves.png        # MidAir training loss plot
+├── eval_comparison.png        # Metrics comparison chart
+├── usegeo_training_curves.png # UseGeo training loss plot
+├── usegeo_comparison.png      # Fine-tuned vs scratch comparison
+└── checkpoints/
+    └── perfs-midair.txt       # Evaluation metrics
+```
+
+---
+
+## Key Findings: Sim-to-Real Transfer
+
+One goal of this project was to investigate whether pretraining on synthetic data helps with real-world depth estimation.
+
+**Observations:**
+- The MidAir-pretrained model provides a useful starting point
+- Fine-tuning on UseGeo improves performance on real images
+- The domain gap is significant—synthetic images are cleaner and more uniform
+- UseGeo lacks camera pose data, so M4Depth operates in single-frame mode rather than using motion parallax
+
+**Challenge:** UseGeo doesn't provide GPS/IMU pose data, which M4Depth normally uses to compute parallax. The dataloader uses identity poses (no motion), so the network falls back to single-frame depth estimation. Despite this limitation, the pretrained encoder features still help.
+
+---
+
+## Troubleshooting
+
+### GPU not detected
+```bash
+# Verify CUDA installation
+nvidia-smi
+
+# Check TensorFlow sees GPU
+python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+```
+
+### Import errors / wrong packages
+System Python packages (from ROS2, etc.) can leak into the venv. Always use:
+```bash
+export PYTHONPATH="/path/to/m4depth_env/lib/python3.10/site-packages"
+```
+
+### NaN during training
+This happens occasionally due to numerical instability. Resume from the latest checkpoint—training auto-saves.
+
+### Out of memory
+Reduce batch size:
+```bash
+python main.py --batch_size=2 ...
+```
+
+---
+
+## Original README Content
+
+The sections below are preserved from the original M4Depth repository for reference.
+
+---
+
+### Overview (Original)
+
+M4Depth is deep neural network designed to estimate depth from RGB image sequences acquired in unknown environments by a camera moving with 6 degrees of freedom (DoF), and is:
+
+* **Lightweight**: M4Depth only requires 500MB of VRAM to run;
+* **Real-time**: M4Depth has a fast inference time that makes it compatible for real-time applications on most GPUs;
+* **State-of-the-art**: M4Depth is state of the art on the Mid-Air dataset and outperforms existing methods in a generalization setup on the TartanAir dataset, while having good performances on the KITTI dataset.
+
+This network is the result of two major contributions:
+* We define a notion of visual parallax between two frames from a generic six-degree-of-freedom (6-DoF) camera motion, and present a way to build cost volumes with this parallax;
+* We use these cost volumes to build a novel lightweight multi-level architecture;
+
+### Dependencies (Original)
+
+The original authors recommend Anaconda:
 ```shell
 conda install -c conda-forge tensorflow-gpu=2.7 numpy pandas
 ```
 
-To follow the instructions given in the rest of this ReadMe, you also have to extract the content of the zip archives:
+**My setup:** I used pip with TensorFlow 2.20 for CUDA 12.x compatibility:
 ```shell
-unzip '*.zip'
+pip install tensorflow[and-cuda] numpy pandas h5py pyquaternion matplotlib
 ```
 
-### Datasets
+### Datasets (Original)
 
-Our set of experiments relies on three different datasets. Our code refers to the [`datasets_location.json`](datasets_location.json) configuration file to know where the data are located.
+Our set of experiments relies on three different datasets. Our code refers to the `datasets_location.json` configuration file to know where the data are located.
 
-We provide scripts to download the datasets easily in the [`scripts`](scripts) directory, and detail how to use them hereunder. Please store each dataset in a disctinct directory to prevent issues with the scripts.
+#### Mid-Air
+Download from [midair.ulg.ac.be](https://midair.ulg.ac.be/download.html). Select "Left RGB" and "Stereo Disparity" image types.
 
-If you use our scripts to download the datasets, you won't have to edit the [`datasets_location.json`](datasets_location.json) configuration file. If you already have some datasets on your computer, you can edit the json file instead of downloading them. We provide information on how to do this hereunder.
-
-#### Mid-Air [[1](#ref_1)]
-
-To be able to download the Mid-Air dataset, you will need to get a file listing all the archives to download. For this, the procedure to follow is:
-> 1. Go on the [download page of the Mid-Air dataset](https://midair.ulg.ac.be/download.html)
-> 2. Select the "Left RGB" and "Stereo Disparity" image types
-> 3. Move to the end of the page and enter your email to get the download links (the volume of selected data should be equal to 316.5Go)
-
-When you have the file, execute our script to download and extract the dataset:
+#### KITTI
 ```shell
-bash  scripts/0a-get_midair.sh path/to/desired/dataset/location path/to/download_config.txt
+bash scripts/0b-get_kitti.sh path/to/desired/dataset/location
 ```
 
-#### KITTI [[2](#ref_1)]
-
-To automatically download and extract the KITTI dataset, you can simply run the following command:
+#### TartanAir
 ```shell
-bash  scripts/0b-get_kitti.sh path/to/desired/dataset/location
+bash scripts/0c-get_tartanair.sh path/to/desired/dataset/location
 ```
 
-#### Tartanair [[3](#ref_1)]
+### Training from Scratch (Original)
 
-To automatically download and extract the scenes from the TartanAir dataset used in our paper (gascola, season forest winter, neighborhood and old town), you can simply run the following command:
 ```shell
-bash  scripts/0c-get_tartanair.sh path/to/desired/dataset/location
+bash scripts/1a-train-midair.sh path/to/desired/weights/location
 ```
 
-#### Editing [`datasets_location.json`](datasets_location.json) (facultative)
+### Evaluation (Original)
 
-The [`datasets_location.json`](datasets_location.json) configuration file simply provides key-value pairs where:
-*    the key is the name of one of the available datasets listed in the [`dataloaders/__init__.py`](dataloaders/__init__.py) file, and
-*    the value stores a string that is the path pointing to the root directory of the data location for the corresponding dataset. This path can be relative or absolute. 
-
-If you use our script to download the datasets, you don't have to edit it. However, if you already have some datasets on your computer, you can edit the paths in the json file instead of downloading them again with our scripts.
-
-## Reproducing paper results
-
-In the following subsections, we present the scripts that allow you to reproduce the experiments made with M4Depth as presented in the paper. These scripts assume that you downloaded the datasets as explained hereabove.
-
-To benefit from the best code speed, you should compile the cuda implementation of the backprojection if you use a compatible GPU:    
 ```shell
-cd cuda_backproject
-bash make.sh
-cd ..
-```    
-
-### Training from scratch
-
-To perform a training with the same setup as the one presented in our paper, you can use the following scripts and monitor the training with tensorboard. A cuda compatible GPU with at least 12GB of VRAM is required to train the network with the same parameters than in the paper.
-* Train on Mid-Air
-```shell
-bash  scripts/1a-train-midair.sh path/to/desired/weights/location
+bash scripts/2-evaluate.sh dataset path/to/weights/location
 ```
 
-* Finetune on KITTI:
-```shell
-bash  scripts/1b-finetune-kitti.sh path/to/desired/weights/location
-```
+### Running on Custom Data (Original)
 
-Please note that the training can sometimes crash because of the apparition of NaNs in the weights of the network. If this happens, the training has to be manually resumed from the latest checkpoint.
+To test M4Depth on a custom dataset:
+1. Generate CSV files mapping frame locations and camera motion
+2. Write a corresponding dataloader (inherit from `DataLoaderGeneric`)
+3. Add your dataset as a choice in the `--dataset` argument
 
-### Evaluation and Pretrained weights
-
-You can compute the performance metrics of a trained version of M4Depth by using the following command line:
-```shell
-bash  scripts/2-evaluate.sh dataset path/to/weights/location
-```
-where the argument `dataset` can take the 4 following value: `midair`, `kitti`, `tartanair-gascola`, `tartanair-winter`, `tartanair-neighborhood` or `tartanair-oldtown` and where the second argument can be left blank.
-
-If the second argument is not given, the evaluation will be done on the pretrained weights we provide. The resulting performance metrics should be the same as the ones reported in our paper.
-
-### Other operations
-
-Command line given hereabove are simply preparametrizations of the parameters that can be given to the `main.py`python script. Instead of using our bash scripts, you can directly call the python script and set the parameters as you want.
-
-To see all the possible parameters and their use, you can request the python help:
-```shell
-python main.py --help
-``` 
-
-### Processing outputs
-
-You can visualize, save or postprocess the outputs of the network easily by implementing the code you want in the `predict` case of the `main.py` file.
-
-## Running on your own images
-
-There is currently no easy one-line command that allows you to test M4Depth directly on your own data. If you want to test M4Depth on a custom dataset you need:
-
-1. Generate the csv files mapping the frame location and frame-to-frame camera motion. The script `scripts/midair-split-generator.py` is the one we used to generate the csv files for Mid-Air in `data/midair`. You can adapt it for your own data. 
-2. Write the corresponding dataloader (it should inherit from the `DataLoaderGeneric` class, see `dataloaders` directory).
-3. Add your dataset as a possible choice in the options for the `--dataset` command line argument.
-
-Once this is done, you should be able to use your dataset with the `main.py` python script.
-
-## Baseline methods performance reproduction
-
-We also provide the code used to get the performance of baseline methods on Mid-Air and TartanAir.  This code can be found in the following GitHub repository: [https://github.com/michael-fonder/M4Depth-Baselines](https://github.com/michael-fonder/M4Depth-Baselines)
+---
 
 ## References
 
-If you use one of the datasets in your research, please consider citing the related paper:
-
-<a name="ref_1"></a>
-
-```
-[1]
+```bibtex
 @inproceedings{Fonder2019MidAir,
   author    = {Fonder, Michael and Van Droogenbroeck, Marc},
   title     = {Mid-Air: A multi-modal dataset for extremely low altitude drone flights},
-  booktitle = {IEEE International Conference on Computer Vision and Pattern Recognition Workshops (CVPRW)},
-  year      = {2019},
-  month     = {June}
+  booktitle = {IEEE CVPRW},
+  year      = {2019}
 }
 
-[2]
 @inproceedings{Geiger2012AreWe,
-  title = {Are we ready for Autonomous Driving? {T}he {KITTI} Vision Benchmark Suite},
-  author = {Geiger, Andreas and Lenz, Philip and Urtasun, Raquel},
-  booktitle = {IEEE International Conference on Computer Vision (CVPR)},
-  pages = {3354-3361},
-  month = Jun,
-  year = {2012}
-}
-
-[3]
-@inproceedings{Wang2020TartanAir,
-  title = {{TartanAir}: A Dataset to Push the Limits of Visual {SLAM}},
-  author = {Wang, Wenshan and Zhu, Delong and Wang, Xiangwei and Hu, Yaoyu and Qiu, Yuheng and Wang, Chen and Hu, Yafei and Kapoor, Ashish and Scherer, Sebastian},
-  booktitle = {IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
-  pages = {4909-4916},
-  month = {October},
-  year = {2020}
+  title     = {Are we ready for Autonomous Driving? The KITTI Vision Benchmark Suite},
+  author    = {Geiger, Andreas and Lenz, Philip and Urtasun, Raquel},
+  booktitle = {IEEE CVPR},
+  year      = {2012}
 }
 ```
 
+---
+
 ## License
 
-Our code is licensed under the AGPLv3 - See the [LICENSE](LICENSE) file for details.
+The original code is licensed under AGPLv3. See [LICENSE](LICENSE) for details.
 
-The cuda implementation of the backprojection is not ours and is licensed under BSD 3 Clause License (see the corresponding [LICENSE](cuda_backproject/LICENSE) )
+The CUDA backprojection implementation is licensed under BSD 3-Clause. See [cuda_backproject/LICENSE](cuda_backproject/LICENSE).
