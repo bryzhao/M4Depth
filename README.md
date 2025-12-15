@@ -1,12 +1,8 @@
 # M4Depth - RBE 577 Final Project
 
-This repository is a fork of the original [M4Depth](https://github.com/michael-fonder/M4Depth) implementation, extended for the **RBE 577: Machine Learning for Robotics** final project at WPI.
+This repository is a fork of the original [M4Depth](https://github.com/michael-fonder/M4Depth) implementation, extended for the **Machine Learning for Robotics** final project at WPI.
 
 The project reproduces the paper's results on the MidAir synthetic dataset and explores sim-to-real transfer by fine-tuning on the UseGeo real-world drone dataset.
-
-**Author:** Bryan Zhao
-**Course:** RBE 577 - Machine Learning for Robotics
-**Term:** Fall 2024
 
 ---
 
