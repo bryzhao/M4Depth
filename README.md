@@ -43,12 +43,13 @@ This fork extends the original repository with:
 
 | Addition | Purpose |
 |----------|---------|
-| `train.sh`, `eval.sh` | Wrapper scripts for training and evaluation with proper environment setup |
-| `dataloaders/usegeo.py` | Custom dataloader for the UseGeo real-world dataset |
-| `train_usegeo.py` | Fine-tuning script for sim-to-real transfer learning |
-| `visualize_predictions.py` | Generate side-by-side depth comparisons for MidAir |
-| `visualize_usegeo.py` | Generate depth comparisons for UseGeo |
-| `plot_*.py` | Scripts to generate training curves and metric comparisons |
+| `train.sh`, `eval.sh` | Wrapper scripts with proper environment setup |
+| `dataloaders/usegeo.py` | Custom dataloader for UseGeo real-world dataset |
+| `train_usegeo.py` | Fine-tuning script for sim-to-real transfer |
+| `generate_usegeo_poses_csv.py` | **Convert trajectory metadata to relative poses** |
+| `visualize_predictions.py` | Side-by-side depth comparisons for MidAir |
+| `visualize_usegeo.py` | Depth comparisons for UseGeo |
+| `plot_*.py` | Training curves and metric comparison plots |
 | `usegeo_csv_generator.py` | Generate train/test splits for UseGeo |
 
 ---
@@ -57,7 +58,7 @@ This fork extends the original repository with:
 
 ### Phase 1: MidAir (Synthetic Data)
 
-I trained the network from scratch on MidAir and achieved results comparable to the paper:
+Trained from scratch on MidAir, achieving results comparable to the paper:
 
 | Metric | My Results | Paper | Notes |
 |--------|-----------|-------|-------|
@@ -71,7 +72,18 @@ I trained the network from scratch on MidAir and achieved results comparable to 
 
 ### Phase 2: UseGeo (Real-World Data)
 
-Fine-tuned the MidAir-pretrained model on real drone imagery from UseGeo. See `usegeo_comparison.png` for a comparison of fine-tuned vs. scratch-trained models.
+Fine-tuned the MidAir-pretrained model on real drone imagery from UseGeo.
+
+**Key Discovery:** UseGeo provides trajectory metadata with real camera poses (quaternion + UTM coordinates). Processing these into relative frame-to-frame poses dramatically improved results:
+
+| Metric | Without Real Poses | With Real Poses | Improvement |
+|--------|-------------------|-----------------|-------------|
+| Train Loss | 40.5m | 40.8m | ~same |
+| **Val Loss** | **75.4m** | **20.6m** | **73% better** |
+
+**Why it matters:** M4Depth computes depth via parallax (`depth = baseline × focal_length / parallax`). Without real poses, the model overfits. With real poses, parallax-based depth estimation works as designed.
+
+See `usegeo_training_curves.png` and `usegeo_pose_comparison.png` for visualizations.
 
 ---
 
@@ -119,8 +131,9 @@ The wrapper scripts (`train.sh`, `eval.sh`, etc.) handle this automatically.
    - Extract and update `datasets_location.json`
 
 2. **UseGeo Dataset**
-   - Download from the UseGeo project page
-   - Run `python usegeo_csv_generator.py` to create train/test splits
+   - Download from [UseGeo GitHub](https://github.com/3DOM-FBK/usegeo)
+   - Get trajectory CSVs (`dataset1_trajectory.csv`, `dataset2_trajectory.csv`, `dataset3_trajectory.csv`)
+   - Place in `/path/to/UseGeo/` directory
 
 3. **Configure paths** in `datasets_location.json`:
    ```json
@@ -128,6 +141,13 @@ The wrapper scripts (`train.sh`, `eval.sh`, etc.) handle this automatically.
      "midair": "/path/to/MidAir",
      "usegeo": "/path/to/UseGeo"
    }
+   ```
+
+4. **Generate UseGeo pose data** (critical for good results):
+   ```bash
+   python generate_usegeo_poses_csv.py
+   # Creates: data/usegeo_poses/train_data/usegeo_train.csv
+   #          data/usegeo_poses/test_data/usegeo_val.csv
    ```
 
 ---
@@ -169,21 +189,32 @@ Creates side-by-side comparisons in `visualizations/`.
 
 ### Fine-tuning on UseGeo (Phase 2)
 
+**With real poses (recommended):**
 ```bash
-./train_usegeo.sh
+# Step 1: Generate pose CSVs from trajectory metadata
+python generate_usegeo_poses_csv.py
+
+# Step 2: Fine-tune with real poses
+python train_usegeo.py --from_midair_ckpt --epochs=30 --batch_size=1 --lr=1e-5 \
+    --data_dir=data/usegeo_poses --output_dir=./checkpoints_usegeo_realpose
 ```
 
-This loads the MidAir-pretrained weights and fine-tunes on UseGeo with:
-- Lower learning rate (1e-5)
-- Batch size 2
-- 30 epochs
+**Generate visualizations:**
+```bash
+python visualize_usegeo.py --ckpt_dir=./checkpoints_usegeo_realpose \
+    --output_dir=visualizations_usegeo_realpose --num_samples=20 \
+    --data_dir=data/usegeo_poses
+```
 
 ### Generate Training Plots
 
 ```bash
+# MidAir training curves
 python plot_from_tensorboard.py --output=training_curves.png
-python plot_usegeo_training.py
-python plot_usegeo_comparison.py
+
+# UseGeo training curves and comparison
+python plot_usegeo_results.py
+# Creates: usegeo_training_curves.png, usegeo_pose_comparison.png
 ```
 
 ---
@@ -192,52 +223,72 @@ python plot_usegeo_comparison.py
 
 ```
 M4Depth/
-├── main.py                    # Original training/eval script
-├── m4depth_network.py         # Network architecture
-├── m4depth_options.py         # Command-line options
+├── main.py                      # Original training/eval script
+├── m4depth_network.py           # Network architecture
+├── m4depth_options.py           # Command-line options
 ├── dataloaders/
-│   ├── generic.py             # Base dataloader class
-│   ├── midair.py              # MidAir dataloader (original)
-│   ├── usegeo.py              # UseGeo dataloader (added)
+│   ├── generic.py               # Base dataloader class
+│   ├── midair.py                # MidAir dataloader (original)
+│   ├── usegeo.py                # UseGeo dataloader (added)
 │   └── ...
-├── data/midair/               # Train/test CSV splits
+├── data/
+│   ├── midair/                  # MidAir train/test CSV splits
+│   ├── usegeo/                  # UseGeo splits (no poses)
+│   └── usegeo_poses/            # UseGeo splits WITH real poses
 │
 │ # Scripts I Added:
-├── train.sh                   # MidAir training wrapper
-├── eval.sh                    # Evaluation wrapper
-├── visualize.sh               # Visualization wrapper
-├── train_usegeo.py            # UseGeo fine-tuning script
-├── train_usegeo.sh            # UseGeo training wrapper
-├── visualize_predictions.py   # MidAir visualization
-├── visualize_usegeo.py        # UseGeo visualization
-├── visualize_usegeo.sh        # UseGeo viz wrapper
-├── plot_from_tensorboard.py   # Training curve plots
-├── plot_usegeo_training.py    # UseGeo training plots
-├── plot_usegeo_comparison.py  # Compare fine-tuned vs scratch
-├── usegeo_csv_generator.py    # Generate UseGeo data splits
+├── train.sh                     # MidAir training wrapper
+├── eval.sh                      # Evaluation wrapper
+├── train_usegeo.py              # UseGeo fine-tuning script
+├── generate_usegeo_poses_csv.py # Convert trajectory to relative poses
+├── visualize_predictions.py     # MidAir visualization
+├── visualize_usegeo.py          # UseGeo visualization
+├── plot_from_tensorboard.py     # MidAir training curves
+├── plot_usegeo_results.py       # UseGeo training curves + comparison
+├── usegeo_csv_generator.py      # Generate UseGeo data splits
 │
 │ # Generated Outputs:
-├── training_curves.png        # MidAir training loss plot
-├── eval_comparison.png        # Metrics comparison chart
-├── usegeo_training_curves.png # UseGeo training loss plot
-├── usegeo_comparison.png      # Fine-tuned vs scratch comparison
+├── midair_training_results.png  # MidAir training loss plot
+├── eval_comparison.png          # Metrics comparison chart
+├── usegeo_training_curves.png   # UseGeo train/val loss plot
+├── usegeo_pose_comparison.png   # With vs without poses comparison
+├── visualizations/              # MidAir depth predictions
+├── visualizations_usegeo_realpose/  # UseGeo depth predictions
 └── checkpoints/
-    └── perfs-midair.txt       # Evaluation metrics
+    └── perfs-midair.txt         # Evaluation metrics
 ```
 
 ---
 
 ## Key Findings: Sim-to-Real Transfer
 
-One goal of this project was to investigate whether pretraining on synthetic data helps with real-world depth estimation.
+### The Importance of Camera Poses
 
-**Observations:**
-- The MidAir-pretrained model provides a useful starting point
-- Fine-tuning on UseGeo improves performance on real images
-- The domain gap is significant—synthetic images are cleaner and more uniform
-- UseGeo lacks camera pose data, so M4Depth operates in single-frame mode rather than using motion parallax
+**Initial assumption:** UseGeo lacks camera pose data, so M4Depth would operate in single-frame mode.
 
-**Challenge:** UseGeo doesn't provide GPS/IMU pose data, which M4Depth normally uses to compute parallax. The dataloader uses identity poses (no motion), so the network falls back to single-frame depth estimation. Despite this limitation, the pretrained encoder features still help.
+**Discovery:** UseGeo provides trajectory metadata (separate CSV files) with full photogrammetry poses:
+- Quaternion rotation (qw, qx, qy, qz)
+- UTM translation coordinates (tx, ty, tz)
+
+**Processing required:**
+1. Convert absolute UTM to relative frame-to-frame poses
+2. Detect trajectory breaks (>50m = new flight strip)
+3. Handle sequence boundaries properly
+
+### Results: Poses Matter More Than Expected
+
+| Scenario | Val Loss | Notes |
+|----------|----------|-------|
+| Without real poses | 75.4m | Severe overfitting |
+| **With real poses** | **20.6m** | **73% improvement** |
+
+**Key insight:** For parallax-based methods like M4Depth, **pose accuracy matters more than image quality**. The sim-to-real gap in image appearance is less important than having accurate camera motion information.
+
+### Recommendations
+
+- **Have GPS/IMU data?** → Use M4Depth with real poses
+- **No pose data?** → Check for trajectory metadata first!
+- **Still no poses?** → Consider pure monocular methods (MiDaS, DPT)
 
 ---
 

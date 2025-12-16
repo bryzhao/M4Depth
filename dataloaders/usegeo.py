@@ -1,7 +1,8 @@
 """
 dataloader for usegeo real-world drone depth dataset.
-usegeo has rgb jpg images and tiff depth maps, but no camera poses.
-we use identity poses to allow single-frame depth prediction.
+usegeo has rgb jpg images and tiff depth maps.
+poses are computed from photogrammetry (omega, phi, kappa) and converted
+to quaternion + relative translation format.
 """
 
 import tensorflow as tf
@@ -14,7 +15,7 @@ class DataLoaderUseGeo(DataLoaderGeneric):
     key differences from midair:
     - depth is float32 tiff (direct meters) not 16-bit png disparity
     - image resolution is 1320x1989 (not 1024x1024)
-    - no camera poses available (using identity)
+    - poses from photogrammetry trajectory (quaternion + relative translation)
     """
 
     def __init__(self, out_size=[384, 384], crop=False):
@@ -64,17 +65,18 @@ class DataLoaderUseGeo(DataLoaderGeneric):
             self.intermediate_size + [3]
         )
 
-        # pose data - UseGeo has no real poses, but M4Depth requires non-zero translation
-        # to compute parallax. We use a small synthetic forward translation.
-        # This allows the model to run without NaN, though geometric accuracy is approximate.
+        # pose data - real poses from photogrammetry trajectory
         out_data['rot'] = tf.cast(
             tf.stack([data_sample['qw'], data_sample['qx'], data_sample['qy'], data_sample['qz']], 0),
             dtype=tf.float32
         )
-        # Small forward translation (0.5m in z-direction) instead of zero
-        # This simulates slow forward drone motion
-        out_data['trans'] = tf.constant([0.0, 0.0, 0.5], dtype=tf.float32)
-        out_data['new_traj'] = tf.math.equal(data_sample['id'], 0)
+        # Real relative translation from frame-to-frame pose computation
+        out_data['trans'] = tf.cast(
+            tf.stack([data_sample['tx'], data_sample['ty'], data_sample['tz']], 0),
+            dtype=tf.float32
+        )
+        # new_traj flag indicates trajectory start (from CSV)
+        out_data['new_traj'] = tf.cast(data_sample['new_traj'], tf.bool)
 
         # load depth data if available
         if 'disp' in data_sample:
@@ -121,10 +123,10 @@ class DataLoaderUseGeo(DataLoaderGeneric):
     def _perform_augmentation(self):
         """
         perform data augmentation for usegeo.
-        simplified version - just color augmentation, no geometric transforms
-        since we don't have real poses.
+        includes color augmentation. geometric transforms are possible now
+        that we have real poses, but keeping simple for now.
         """
-        # only do color augmentation
+        # color augmentation
         self._augmentation_step_color()
 
         # crop if needed

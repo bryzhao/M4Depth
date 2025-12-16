@@ -233,14 +233,14 @@ def evaluate(model, dataset, max_batches=50):
                 traj_samples[j][key] = item
 
         # Forward pass (no gradients)
+        # When training=False, model returns {"depth": tensor} directly at full resolution
         predictions = model([traj_samples, batch["camera"]], training=False)
 
-        # For eval, we only use highest-resolution prediction
-        # predictions[-1][0] = last frame, scale 0 (192px)
-        pred_depth = predictions[-1][0]["depth"]
+        # Get predicted depth - model with training=False returns dict directly
+        pred_depth = predictions["depth"]
         gt_depth = traj_samples[-1]["depth"]
 
-        # Resize pred to match gt
+        # Resize pred to match gt if needed
         if pred_depth.shape[1:3] != gt_depth.shape[1:3]:
             pred_depth = tf.image.resize(pred_depth, gt_depth.shape[1:3])
 
@@ -277,6 +277,8 @@ def main():
                         help='Output directory for checkpoints')
     parser.add_argument('--skip_validation', action='store_true',
                         help='Skip validation during training (avoids batch size mismatch issues)')
+    parser.add_argument('--data_dir', type=str, default='data/usegeo',
+                        help='Data directory (default: data/usegeo, use data/usegeo_poses for real poses)')
     args = parser.parse_args()
 
     # Validate args
@@ -305,21 +307,22 @@ def main():
     train_loader = get_loader('usegeo')
     train_settings = DataloaderParameters(
         db_path_config=db_config,
-        records_path='data/usegeo/train_data',
+        records_path=f'{args.data_dir}/train_data',
         db_seq_len=4,   # Load 4 frames from disk
-        seq_len=2,      # Use 2 frames per training sample
+        seq_len=4,      # Use 4 frames per training sample (need multiple for parallax)
         augment=True    # Enable color augmentation
     )
     train_loader.get_dataset('train', train_settings, batch_size=args.batch_size)
     train_dataset = train_loader.dataset
     print(f"  Train samples: {train_loader.length}")
+    print(f"  Data dir: {args.data_dir}")
 
     val_loader = get_loader('usegeo')
     val_settings = DataloaderParameters(
         db_path_config=db_config,
-        records_path='data/usegeo/test_data',
+        records_path=f'{args.data_dir}/test_data',
         db_seq_len=4,
-        seq_len=2,
+        seq_len=4,
         augment=False   # No augmentation for validation
     )
     val_loader.get_dataset('eval', val_settings, batch_size=1)

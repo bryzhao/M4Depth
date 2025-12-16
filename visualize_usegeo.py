@@ -136,6 +136,7 @@ def main():
     parser.add_argument('--ckpt_dir', type=str, default='./ckpt', help='checkpoint directory')
     parser.add_argument('--stride', type=int, default=5, help='skip every N samples')
     parser.add_argument('--use_train_data', action='store_true', help='use training data')
+    parser.add_argument('--data_dir', type=str, default='data/usegeo', help='data directory (use data/usegeo_poses for real poses)')
     args = parser.parse_args()
 
     print("loading model and data...")
@@ -147,9 +148,9 @@ def main():
     # create dataloader
     loader = get_loader('usegeo')
 
-    records_path = 'data/usegeo/test_data'
+    records_path = f'{args.data_dir}/test_data'
     if args.use_train_data:
-        records_path = 'data/usegeo/train_data'
+        records_path = f'{args.data_dir}/train_data'
 
     settings = DataloaderParameters(
         db_path_config=db_config,
